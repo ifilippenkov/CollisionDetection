@@ -1,0 +1,7 @@
+FOLDER_ID=""
+AUTH_TOKEN=""
+
+# Neo4j Database
+NEO4J_URL="bolt://localhost:7687"
+NEO4J_USERNAME=""
+NEO4J_PASSWORD=""
