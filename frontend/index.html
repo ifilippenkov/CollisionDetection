@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система проверки фактологических противоречий</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 Система проверки фактологических противоречий</h1>
+            <p class="subtitle">RAG-система для поиска внутренних противоречий в текстах</p>
+            <div class="status-bar">
+                <span class="status-indicator" id="statusIndicator">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Проверка подключения...</span>
+                </span>
+            </div>
+        </header>
+
+        <!-- Вкладки -->
+        <div class="tabs">
+            <button class="tab-button active" data-tab="upload">
+                📁 Загрузка базы знаний
+            </button>
+            <button class="tab-button" data-tab="check" id="checkTab" disabled>
+                🔎 Проверка текста
+            </button>
+        </div>
+
+        <!-- Контент вкладок -->
+        <div class="tab-content">
+            <!-- Вкладка загрузки -->
+            <div class="tab-pane active" id="uploadPane">
+                <div class="card">
+                    <h2>Шаг 1: Загрузите документы для построения базы знаний</h2>
+                    <p class="description">
+                        Загрузите текстовые файлы, которые будут использоваться как источник фактов 
+                        для проверки противоречий.
+                    </p>
+
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-icon">📄</div>
+                        <p class="upload-text">
+                            <strong>Перетащите файлы сюда</strong><br>
+                            или нажмите для выбора
+                        </p>
+                        <input type="file" id="fileInput" multiple accept=".txt,.md,.doc,.docx" hidden>
+                    </div>
+
+                    <div class="file-list" id="fileList"></div>
+
+                    <div class="chunker-selector">
+                        <label for="chunkerSelect">
+                            <strong>Метод разбиения текста:</strong>
+                        </label>
+                        <select id="chunkerSelect">
+                            <option value="basic" selected>Базовый (быстрый)</option>
+                            <option value="LLM">LLM-разбиение (точный, медленный)</option>
+                        </select>
+                        <p class="info-text">
+                            Базовый метод быстрее, LLM-метод обеспечивает лучшее качество разбиения на факты.
+                        </p>
+                    </div>
+
+                    <button class="btn btn-primary" id="buildIndexBtn" disabled>
+                        <span class="btn-icon">🚀</span>
+                        Построить базу знаний
+                    </button>
+
+                    <div class="progress-container" id="progressContainer" style="display: none;">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <p class="progress-text" id="progressText">Обработка...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Вкладка проверки -->
+            <div class="tab-pane" id="checkPane">
+                <div class="card">
+                    <h2>Шаг 2: Проверьте текст на противоречия</h2>
+                    <p class="description">
+                        Введите текст для проверки. Система найдет факты, которые противоречат 
+                        или подтверждают ваше утверждение.
+                    </p>
+
+                    <div class="input-group">
+                        <label for="textInput">
+                            <strong>Текст для проверки:</strong>
+                        </label>
+                        <textarea 
+                            id="textInput" 
+                            placeholder="Например: Арья Старк не является дочерью Эддарда Старка..."
+                            rows="6"
+                        ></textarea>
+                    </div>
+
+                    <div class="settings-row">
+                        <div class="setting-item">
+                            <label for="topKInput">Количество фактов для анализа:</label>
+                            <input type="number" id="topKInput" value="30" min="5" max="100">
+                        </div>
+                        <div class="setting-item">
+                            <label for="rerankerInput">Топ-N после reranking:</label>
+                            <input type="number" id="rerankerInput" value="5" min="1" max="20">
+                        </div>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="rerankerCheckbox" checked>
+                                Использовать reranker
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-row">
+                        <div class="setting-item">
+                            <label for="languageSelect">
+                                <strong>Язык системного промпта:</strong>
+                            </label>
+                            <select id="languageSelect">
+                                <option value="en" selected>English (Английский)</option>
+                                <option value="ru">Русский (Russian)</option>
+                            </select>
+                            <p class="info-text">
+                                Выберите язык для системного промпта LLM
+                            </p>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" id="checkBtn">
+                        <span class="btn-icon">🔍</span>
+                        Найти противоречия
+                    </button>
+
+                    <div class="loading-indicator" id="loadingIndicator" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>Анализируем текст...</p>
+                    </div>
+                </div>
+
+                <!-- Результаты -->
+                <div class="results-container" id="resultsContainer" style="display: none;">
+                    <div class="results-header">
+                        <h2>Результаты анализа</h2>
+                        <div class="confidence-badge" id="confidenceBadge"></div>
+                    </div>
+
+                    <div class="results-summary" id="resultsSummary"></div>
+
+                    <div class="results-grid">
+                        <!-- Противоречия -->
+                        <div class="result-section conflict-section">
+                            <div class="section-header">
+                                <h3>❌ Противоречащие факты</h3>
+                                <span class="count-badge" id="conflictCount">0</span>
+                            </div>
+                            <div class="facts-list" id="conflictsList">
+                                <p class="empty-message">Противоречий не обнаружено</p>
+                            </div>
+                        </div>
+
+                        <!-- Подтверждения -->
+                        <div class="result-section support-section">
+                            <div class="section-header">
+                                <h3>✅ Подтверждающие факты</h3>
+                                <span class="count-badge" id="supportCount">0</span>
+                            </div>
+                            <div class="facts-list" id="supportsList">
+                                <p class="empty-message">Подтверждений не обнаружено</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="explanation-section">
+                        <h3>💡 Детальное объяснение</h3>
+                        <div class="explanation-content" id="explanationContent"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Powered by Yandex Cloud LLM & LlamaIndex | Neo4j Graph Database</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
