@@ -1,0 +1,6 @@
+{
+  "conflict": "Arya Stark is not the daughter of Eddard Stark",
+  "format": "text",
+  "data_path": "input_data",
+  "chunker": "basic"
+}
